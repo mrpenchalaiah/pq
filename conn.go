@@ -229,10 +229,19 @@ func (cn *conn) handleDriverSettings(o values) (err error) {
 	return boolSetting("binary_parameters", &cn.binaryParameters)
 }
 
+func isEnvBoolTrue(key string) bool {
+	valStr := os.Getenv(key)
+	if valStr == "" {
+		return false // unset or empty → false
+	}
+	val, err := strconv.ParseBool(valStr)
+	return err == nil && val
+}
+
 func (cn *conn) handlePgpass(o values) {
 	//checking whether this is passwordless authentication or not
 	if isEnvBoolTrue("PASSWORD_LESS") {
-		o["password"] = getLatestToken()
+		o["password"] = getLatestToken(o)
 		return
 	}
 	// if a password was supplied, do not process .pgpass
@@ -383,7 +392,6 @@ func (c *Connector) open(ctx context.Context) (cn *conn, err error) {
 	for k, v := range c.opts {
 		o[k] = v
 	}
-	o["password"] = getLatestToken(o)
 	cn = &conn{
 		opts:   o,
 		dialer: c.dialer,
