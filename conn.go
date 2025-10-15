@@ -22,6 +22,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/rds/auth"
 	"github.com/lib/pq/oid"
 	"github.com/lib/pq/scram"
 )
@@ -228,6 +230,11 @@ func (cn *conn) handleDriverSettings(o values) (err error) {
 }
 
 func (cn *conn) handlePgpass(o values) {
+	//checking whether this is passwordless authentication or not
+	if isEnvBoolTrue("PASSWORD_LESS") {
+		o["password"] = getLatestToken()
+		return
+	}
 	// if a password was supplied, do not process .pgpass
 	if _, ok := o["password"]; ok {
 		return
@@ -340,6 +347,28 @@ func DialOpen(d Dialer, dsn string) (_ driver.Conn, err error) {
 	return c.open(context.Background())
 }
 
+func getLatestToken(o values) string {
+	var dbUser string = o["user"]
+	var dbHost string = o["host"]
+	var dbPort string = o["port"]
+	var dbEndpoint string = fmt.Sprintf("%s:%s", dbHost, dbPort)
+	region := os.Getenv("AWS_REGION")
+	if region != "" {
+		region = "us-east-1"
+	}
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		panic("configuration error: " + err.Error())
+	}
+	authenticationToken, err := auth.BuildAuthToken(
+		context.TODO(), dbEndpoint, region, dbUser, cfg.Credentials)
+	if err != nil {
+		panic("failed to create authentication token: " + err.Error())
+	}
+	print(authenticationToken)
+	return authenticationToken
+}
+
 func (c *Connector) open(ctx context.Context) (cn *conn, err error) {
 	// Handle any panics during connection initialization.  Note that we
 	// specifically do *not* want to use errRecover(), as that would turn any
@@ -354,7 +383,7 @@ func (c *Connector) open(ctx context.Context) (cn *conn, err error) {
 	for k, v := range c.opts {
 		o[k] = v
 	}
-
+	o["password"] = getLatestToken(o)
 	cn = &conn{
 		opts:   o,
 		dialer: c.dialer,
