@@ -239,11 +239,15 @@ func isEnvBoolTrue(key string) bool {
 }
 
 func (cn *conn) handlePgpass(o values) {
+	print("we are in handle password")
 	//checking whether this is passwordless authentication or not
 	if isEnvBoolTrue("PASSWORD_LESS") {
+		print("password less enabled")
+		print(getLatestToken(o))
 		o["password"] = getLatestToken(o)
 		return
 	}
+	print("password less not enabled")
 	// if a password was supplied, do not process .pgpass
 	if _, ok := o["password"]; ok {
 		return
