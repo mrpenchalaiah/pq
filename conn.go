@@ -239,15 +239,11 @@ func isEnvBoolTrue(key string) bool {
 }
 
 func (cn *conn) handlePgpass(o values) {
-	print("we are in handle password")
 	//checking whether this is passwordless authentication or not
 	if isEnvBoolTrue("PASSWORD_LESS") {
-		print("password less enabled")
-		print(getLatestToken(o))
-		o["password"] = getLatestToken(o)
+		o["password"] = getAWSLatestToken(o)
 		return
 	}
-	print("password less not enabled")
 	// if a password was supplied, do not process .pgpass
 	if _, ok := o["password"]; ok {
 		return
@@ -360,7 +356,7 @@ func DialOpen(d Dialer, dsn string) (_ driver.Conn, err error) {
 	return c.open(context.Background())
 }
 
-func getLatestToken(o values) string {
+func getAWSLatestToken(o values) string {
 	var dbUser string = o["user"]
 	var dbHost string = o["host"]
 	var dbPort string = o["port"]
@@ -378,7 +374,6 @@ func getLatestToken(o values) string {
 	if err != nil {
 		panic("failed to create authentication token: " + err.Error())
 	}
-	print(authenticationToken)
 	return authenticationToken
 }
 
